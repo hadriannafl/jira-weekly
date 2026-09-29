@@ -1,0 +1,10 @@
+services:
+  jira-weekly:
+    build: .
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./reports:/app/reports
+      - ./assets:/app/assets:ro
+    restart: unless-stopped

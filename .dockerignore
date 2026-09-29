@@ -1,0 +1,6 @@
+.env
+*.xlsx
+reports/
+assets/
+jira-weekly.exe
+.git

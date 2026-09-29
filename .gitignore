@@ -1,0 +1,5 @@
+.env
+*.xlsx
+reports/
+assets/signature.png
+jira-weekly.exe
