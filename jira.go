@@ -48,9 +48,10 @@ type Issue struct {
 		Parent *struct {
 			Key string `json:"key"`
 		} `json:"parent"`
-		Created string `json:"created"`
-		Updated string `json:"updated"`
-		DueDate string `json:"duedate"`
+		Subtasks []Issue `json:"subtasks"`
+		Created  string  `json:"created"`
+		Updated  string  `json:"updated"`
+		DueDate  string  `json:"duedate"`
 		// When the issue last moved between To Do / In Progress / Done.
 		StatusCategoryChangeDate string `json:"statuscategorychangedate"`
 	} `json:"fields"`
@@ -121,7 +122,7 @@ func (c *Client) Search(jql, expand string) ([]Issue, error) {
 func (c *Client) searchPage(jql, expand, token string) (*searchPage, error) {
 	q := url.Values{}
 	q.Set("jql", jql)
-	q.Set("fields", "summary,status,issuetype,priority,project,reporter,assignee,parent,created,updated,duedate,statuscategorychangedate")
+	q.Set("fields", "summary,status,issuetype,priority,project,reporter,assignee,parent,subtasks,created,updated,duedate,statuscategorychangedate")
 	q.Set("maxResults", "100")
 	if expand != "" {
 		q.Set("expand", expand)

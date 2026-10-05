@@ -72,6 +72,11 @@ func serveWeb(addr string, client *Client, jql string) error {
 		data["WeekName"] = weekName(week)
 		data["Label"] = rep.Start.Format("02 Jan") + " – " + rep.End.AddDate(0, 0, -1).Format("02 Jan 2006")
 		data["Week"] = week
+		var all []Issue
+		for _, c := range categories {
+			all = append(all, rep.Groups[c]...)
+		}
+		setTypes(data, all)
 		data["Prev"] = week - 1
 		data["Next"] = week + 1
 		render(w, data)
@@ -111,6 +116,7 @@ func serveWeb(addr string, client *Client, jql string) error {
 		data["Total"] = len(issues)
 		data["Days"] = days
 		data["Ranges"] = []int{30, 90, 365}
+		setTypes(data, issues)
 		render(w, data)
 	})
 
@@ -136,14 +142,37 @@ func pageData(client *Client, page string) map[string]any {
 		}
 	}
 	return map[string]any{
-		"Page":     page,
-		"BaseURL":  client.BaseURL,
-		"Name":     client.DisplayName,
-		"Initials": initials,
-		"Fetched":  time.Now().Format("15:04"),
+		"Page":      page,
+		"BaseURL":   client.BaseURL,
+		"Name":      client.DisplayName,
+		"Initials":  initials,
+		"Fetched":   time.Now().Format("15:04"),
 		"ZoomURL":   os.Getenv("ZOOM_URL"),
 		"Reminders": reminders(time.Now()),
 	}
+}
+
+// setTypes adds the issue types for the filter buttons. The default is the
+// first type containing "dev"; no match means show everything.
+func setTypes(data map[string]any, issues []Issue) {
+	seen := map[string]bool{}
+	var types []string
+	for _, is := range issues {
+		if t := is.Fields.IssueType.Name; t != "" && !seen[t] {
+			seen[t] = true
+			types = append(types, t)
+		}
+	}
+	sort.Strings(types)
+	def := ""
+	for _, t := range types {
+		if strings.Contains(strings.ToLower(t), "dev") {
+			def = t
+			break
+		}
+	}
+	data["Types"] = types
+	data["DefaultType"] = def
 }
 
 func render(w http.ResponseWriter, data map[string]any) {

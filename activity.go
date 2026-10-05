@@ -27,9 +27,9 @@ func fetchActivity(client *Client, from time.Time) ([]Issue, error) {
 	return client.Search(jql, "changelog")
 }
 
-// setFrom fills Issue.From with the assignee of the parent ticket (the
-// person who split it into subtasks for you), falling back to the reporter.
-func setFrom(client *Client, issues []Issue) error {
+// fetchParents returns the parent tickets of issues by key, including their
+// subtasks.
+func fetchParents(client *Client, issues []Issue) (map[string]Issue, error) {
 	var keys []string
 	seen := map[string]bool{}
 	for _, is := range issues {
@@ -39,29 +39,43 @@ func setFrom(client *Client, issues []Issue) error {
 		}
 	}
 
-	parentAssignee := map[string]string{}
+	parents := map[string]Issue{}
 	for i := 0; i < len(keys); i += 100 {
 		batch := keys[i:min(i+100, len(keys))]
-		parents, err := client.Search("key in ("+strings.Join(batch, ",")+")", "")
+		found, err := client.Search("key in ("+strings.Join(batch, ",")+")", "")
 		if err != nil {
-			return err
+			return nil, err
 		}
-		for _, p := range parents {
-			if p.Fields.Assignee != nil {
-				parentAssignee[p.Key] = p.Fields.Assignee.DisplayName
-			}
+		for _, p := range found {
+			parents[p.Key] = p
 		}
 	}
+	return parents, nil
+}
 
+// setFrom fills Issue.From with the assignee of the parent ticket (the
+// person who split it into subtasks for you), falling back to the reporter.
+func setFrom(client *Client, issues []Issue) error {
+	parents, err := fetchParents(client, issues)
+	if err != nil {
+		return err
+	}
 	for i := range issues {
 		f := &issues[i].Fields
-		if f.Parent != nil && parentAssignee[f.Parent.Key] != "" {
-			issues[i].From = parentAssignee[f.Parent.Key]
+		if p, ok := parents[parentKey(issues[i])]; ok && p.Fields.Assignee != nil {
+			issues[i].From = p.Fields.Assignee.DisplayName
 		} else if f.Reporter != nil {
 			issues[i].From = f.Reporter.DisplayName
 		}
 	}
 	return nil
+}
+
+func parentKey(is Issue) string {
+	if is.Fields.Parent == nil {
+		return ""
+	}
+	return is.Fields.Parent.Key
 }
 
 // activityDays returns the local dates (YYYY-MM-DD) on which accountID
