@@ -49,6 +49,31 @@ func TestWeeklyStatus(t *testing.T) {
 	}
 }
 
+func TestWeeklyNote(t *testing.T) {
+	dev := mustIssue(t, `{"fields":{"issuetype":{"name":"Dev"}}}`)
+	bug := mustIssue(t, `{"fields":{"issuetype":{"name":"Bug"}}}`)
+	tests := []struct {
+		is     Issue
+		status interface{}
+		want   string
+	}{
+		{dev, "QC", "DONE - Sudah submit ke QC, menunggu hasil pengujian"},
+		{dev, "TR", "QC selesai, menunggu TR"},
+		{dev, 1, "DONE - Selesai"},
+		{bug, 1, "DONE - Bug sudah diperbaiki"},
+		{dev, 0, "Rencana development minggu depan"},
+		{bug, 0, "Rencana perbaikan bug minggu depan"},
+		{dev, "In Progress", "DEV - Sedang dikerjakan"},
+		{bug, "In Progress", "DEV - Sedang perbaikan bug"},
+		{dev, "Code Review", "DEV - Code Review"},
+	}
+	for _, tt := range tests {
+		if got := weeklyNote(tt.is, tt.status); got != tt.want {
+			t.Errorf("%s %v: got %q, want %q", tt.is.Fields.IssueType.Name, tt.status, got, tt.want)
+		}
+	}
+}
+
 func TestHasWord(t *testing.T) {
 	for name, want := range map[string]bool{"TR": true, "Sub-task TR": true, "Story": false, "QC": false} {
 		if got := hasWord(name, "tr"); got != want {

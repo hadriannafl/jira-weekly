@@ -45,7 +45,6 @@ svg{flex:none}
 .topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--border)}
 .topbar-in{max-width:1400px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;letter-spacing:-.01em}
-.logo{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
 .nav{display:flex;gap:4px;padding:4px;background:var(--surface-2);border-radius:12px;margin-left:auto}
 .nav a{padding:6px 12px;border-radius:9px;font-size:14px;font-weight:500;color:var(--muted);text-decoration:none}
 .nav a[aria-current]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
@@ -97,7 +96,7 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
 .progress-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;font-size:14px;margin-bottom:8px}
 .progress-row b{font-size:14px}
 .bar{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
-.bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--done))}
+.bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--done));transition:width .7s cubic-bezier(.2,.7,.3,1)}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:600;font-size:14px;text-decoration:none;transition:transform .15s,box-shadow .15s}
 .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
@@ -105,7 +104,11 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
 
 /* stats (tabs on mobile) */
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
-.stat{display:flex;align-items:center;gap:12px;padding:14px;text-decoration:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.stat{display:flex;align-items:center;gap:12px;padding:14px;text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s,transform .2s}
+.stat:hover,.js .stat[aria-selected]:hover{background:color-mix(in srgb,var(--c) 10%,var(--surface));border-color:color-mix(in srgb,var(--c) 55%,var(--border));box-shadow:0 6px 20px color-mix(in srgb,var(--c) 22%,transparent);transform:translateY(-2px)}
+.stat .ic{transition:background .2s,color .2s}
+.stat:hover .ic{background:var(--c);color:var(--surface)}
+.stat:hover b{color:var(--c)}
 .stat .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
 .stat b{display:block;font-size:22px;line-height:1.1}
 .stat span{font-size:13px;color:var(--muted)}
@@ -170,7 +173,8 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
 }
 @media (max-width:480px){
   .nav a{padding:6px 10px}
-  .brand span,.zoom span{display:none}
+  .zoom span{display:none}
+  .brand{font-size:14px}
   .zoom{padding:0 9px}
   h1{font-size:22px}
   .actions .btn{flex:1;justify-content:center}
@@ -180,7 +184,7 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
 </head>
 <body>
 <header class="topbar"><div class="topbar-in">
-  <a class="brand" href="/"><span class="logo">WR</span><span>Weekly Report</span></a>
+  <a class="brand" href="/"><span>Weekly Report</span></a>
   <nav class="nav">
     <a href="/" {{if eq .Page "weekly"}}aria-current="page"{{end}}>Weekly</a>
     <a href="/history" {{if eq .Page "history"}}aria-current="page"{{end}}>Riwayat</a>
@@ -340,6 +344,28 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
   function ofType(list){
     return [].filter.call(list,function(i){return !type||i.dataset.type===type});
   }
+  // Progress: the bar slides (CSS transition) and the numbers count from the
+  // previous values to the new ones.
+  var shownProgress={done:0,total:0,pct:0}, raf=0;
+  function animateProgress(done,total){
+    var text=document.getElementById('progress-text');
+    var bar=document.getElementById('progress-bar');
+    var pct=total?Math.floor(done*100/total):0;
+    var from=shownProgress, to={done:done,total:total,pct:pct}, t0=null;
+    bar.style.width=pct+'%';
+    cancelAnimationFrame(raf);
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){from=to}
+    (function step(t){
+      if(t0===null){t0=t}
+      var k=Math.min((t-t0)/700,1), e=1-Math.pow(1-k,3);
+      var cur={};
+      for(var key in to){cur[key]=Math.round(from[key]+(to[key]-from[key])*e)}
+      text.textContent=cur.done+' dari '+cur.total+' selesai · '+cur.pct+'%';
+      shownProgress=cur;
+      if(k<1){raf=requestAnimationFrame(step)}
+    })(performance.now());
+  }
+
   function apply(animate){
     chips.forEach(function(c){c.setAttribute('aria-pressed',c.dataset.type===type)});
     var shown=0;
@@ -359,13 +385,10 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
       var s=document.querySelector('.stat[data-target="'+c.id+'"] b');
       if(s){s.textContent=n}
     });
-    var text=document.getElementById('progress-text');
-    if(text){
+    if(document.getElementById('progress-text')){
       var total=ofType(document.querySelectorAll('.col .issue')).length;
       var done=ofType(document.querySelectorAll('#done .issue')).length;
-      var pct=total?Math.floor(done*100/total):0;
-      text.textContent=done+' dari '+total+' selesai · '+pct+'%';
-      document.getElementById('progress-bar').style.width=pct+'%';
+      animateProgress(done,total);
     }
     document.querySelectorAll('.month').forEach(function(m){
       m.querySelector('.count').textContent=ofType(m.querySelectorAll('.issue')).length;
@@ -376,6 +399,9 @@ h1{font-size:26px;line-height:1.2;margin:4px 0 2px;letter-spacing:-.02em}
     if(c.dataset.type!==type){type=c.dataset.type;apply(true)}
   })});
   if(input){input.addEventListener('input',function(){q=input.value.trim().toLowerCase();apply()})}
+  // Start the bar from 0 so it fills up when the page (or another week) opens.
+  var pb=document.getElementById('progress-bar');
+  if(pb){pb.style.width='0%';void pb.offsetWidth}
   apply();
 
   // Cards and month headings fade up as they scroll into view.
